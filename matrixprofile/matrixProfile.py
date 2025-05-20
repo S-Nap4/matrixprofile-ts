@@ -87,7 +87,9 @@ def _self_join_or_not_preprocess(tsA, tsB, m):
 
     return (np.full(shape, np.inf), np.full(shape, np.inf))
 
-def _matrixProfile(tsA,m,orderClass,distanceProfileFunction,tsB=None):
+##### changed orderClass in lienarOrder and added v as a input 
+
+def _matrixProfile(tsA,m,linearOrder,v,distanceProfileFunction,tsB=None):
     """
     Core method for calculating the Matrix Profile
 
@@ -100,7 +102,7 @@ def _matrixProfile(tsA,m,orderClass,distanceProfileFunction,tsB=None):
     sampling: The percentage of all possible distance profiles to sample for the final Matrix Profile.
     """
 
-    order = orderClass(len(tsA)-m+1)
+    order = linearOrder(len(tsA)-m+1,v)
     mp, mpIndex = _self_join_or_not_preprocess(tsA, tsB, m)
 
     if not is_array_like(tsB):
@@ -109,7 +111,7 @@ def _matrixProfile(tsA,m,orderClass,distanceProfileFunction,tsB=None):
     tsA = _clean_nan_inf(tsA)
     tsB = _clean_nan_inf(tsB)
 
-    idx=order.next()
+    idx=order.next(v)
     while idx != None:
         (distanceProfile,querySegmentsID) = distanceProfileFunction(tsA,idx,m,tsB)
 
@@ -216,7 +218,7 @@ def _matrixProfile_sampling(tsA,m,orderClass,distanceProfileFunction,tsB=None,sa
 
 
 #Write matrix profile function for STOMP and then consolidate later! (aka link to the previous distance profile)
-def _matrixProfile_stomp(tsA,m,orderClass,distanceProfileFunction,tsB=None):
+def _matrixProfile_stomp(tsA,m,v,orderClass,distanceProfileFunction,tsB=None):
     order = orderClass(len(tsA)-m+1)
     mp, mpIndex = _self_join_or_not_preprocess(tsA, tsB, m)
 
@@ -226,7 +228,7 @@ def _matrixProfile_stomp(tsA,m,orderClass,distanceProfileFunction,tsB=None):
     tsA = _clean_nan_inf(tsA)
     tsB = _clean_nan_inf(tsB)
 
-    idx=order.next()
+    idx=order.next(v)
 
     #Get moving mean and standard deviation
     mean, std = movmeanstd(tsA,m)
@@ -253,7 +255,7 @@ def _matrixProfile_stomp(tsA,m,orderClass,distanceProfileFunction,tsB=None):
 
         #Update the matrix profile to include the new minimum values (where appropriate)
         mp = np.minimum(mp,distanceProfile)
-        idx = order.next()
+        idx = order.next(v)
 
         dp = dot_prev
     return (mp,mpIndex)
@@ -334,7 +336,7 @@ def stamp(tsA,m,tsB=None,sampling=0.2, n_threads=None, random_state=None):
 
     return _stamp_parallel(tsA, m, tsB=tsB, sampling=sampling, n_threads=n_threads, random_state=random_state)
 
-def stomp(tsA,m,tsB=None):
+def stomp(tsA,m,v,tsB=None):
     """
     Calculate the Matrix Profile using the more efficient MASS calculation. Distance profiles are computed according to the directed STOMP procedure.
 
@@ -344,7 +346,7 @@ def stomp(tsA,m,tsB=None):
     m: Length of subsequence to compare.
     tsB: Time series to compare the query against. Note that, if no value is provided, tsB = tsA by default.
     """
-    return _matrixProfile_stomp(tsA,m,order.linearOrder,distanceProfile.STOMPDistanceProfile,tsB)
+    return _matrixProfile_stomp(tsA,m,v,lambda size: order.linearOrder(size, v),distanceProfile.STOMPDistanceProfile,tsB)
 
 
 
