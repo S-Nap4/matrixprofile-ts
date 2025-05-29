@@ -99,14 +99,15 @@ def slidingDotProduct(query,ts,v=1):
     ----------
     query: Specific time series query to evaluate.
     ts: Time series to calculate the query's sliding dot product against.
-     v : int, optional
-        Step size (default=1, compute every subsequence).
+    v : Step size (default=1, compute every subsequence).
     """
 
     m = len(query)
     n = len(ts)
 
     if v==1:
+        #if v=1 we used the previous code
+
         #If length is odd, zero-pad time time series
         ts_add = 0
         if n%2 ==1:
@@ -133,8 +134,10 @@ def slidingDotProduct(query,ts,v=1):
 
         #Note that we only care about the dot product results from index m-1 onwards, as the first few values aren't true dot products (due to the way the FFT works for dot products)
         return dot_product[trim :]
-    else: #Non usa FFT perché il vantaggio computazionale si perde quando v è grande.
-        # Number of required dot products
+    else: 
+        #if v =/= 1
+        #do not use FFT because the computational advantage is lost when v is big
+        # Number of required dot products (depends on how many indexes we skip, i.e. v)
         num_dots = (n - m) // v + 1
         
         # Initialize output array
@@ -142,7 +145,7 @@ def slidingDotProduct(query,ts,v=1):
         
         # Compute each required dot product directly
         for i in range(num_dots):
-            start = i * v #Calcola solo i prodotti scalari necessari (start = i * v).
+            start = i * v #Compute only the necessary scalar products
             end = start + m
             dot_product[i] = np.dot(query, ts[start:end])
         
@@ -189,6 +192,13 @@ def mass(query,ts,v):
     mean, std = movmeanstd(ts,m)
     dot = slidingDotProduct(query,ts,v)
 
+    #CONTRIBUTION
+    # Ensure that the arrays used in the MASS distance calculation (dot, mean, std) have all the same length. 
+    # necessary because:
+    # - The sliding dot product (dot) may return fewer elements when using a step size v.
+    # - The moving mean and std (mean, std) are computed over the full time series.
+    # To avoid broadcasting errors or mismatched array operations, we truncate all three arrays to the minimum common length.
+
     min_len = min(len(dot), len(mean), len(std))
     dot = dot[:min_len]
     mean = mean[:min_len]
@@ -198,10 +208,9 @@ def mass(query,ts,v):
     res = 2*m*(1-(dot-m*mean*q_mean)/(m*std*q_std))
 
 
-    res_full = np.full(len(ts) - m + 1, np.nan)  # array pieno di nan
+    res_full = np.full(len(ts) - m + 1, np.nan)  # array full of NaN
 
-    # Mappa i risultati calcolati nei posti corretti (ogni v posizioni)
-    res_full = np.full(len(ts) - m + 1, np.nan)
+    # Maps the result in the correct places (every v indexes)
     for i, val in enumerate(res):
         idx = i * v
         if idx < len(res_full):

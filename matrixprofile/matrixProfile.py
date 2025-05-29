@@ -17,6 +17,8 @@ import math
 
 from .scrimp import scrimp_plus_plus
 
+#To implent our idea we modify the _matrixprofile function
+
 def is_array_like(a):
     """
     Helper function to determine if a value is array like.
@@ -87,8 +89,8 @@ def _self_join_or_not_preprocess(tsA, tsB, m):
 
     return (np.full(shape, np.inf), np.full(shape, np.inf))
 
-##### changed orderClass in lienarOrder and added v as a input 
 
+#delete the use of orderClass for a more easy access on the indixes
 def _matrixProfile(tsA,m,v,distanceProfileFunction,tsB=None):
     """
     Core method for calculating the Matrix Profile
@@ -97,16 +99,25 @@ def _matrixProfile(tsA,m,v,distanceProfileFunction,tsB=None):
     ----------
     tsA: Time series containing the queries for which to calculate the Matrix Profile.
     m: Length of subsequence to compare.
-    orderClass: Method defining the order in which distance profiles are calculated.
     distanceProfileFunction: Method for calculating individual distance profiles.
-    sampling: The percentage of all possible distance profiles to sample for the final Matrix Profile.
+    v : Step size for sliding the window across the time series.
+        Instead of computing the distance profile at every index, the algorithm skips v indices between each starting point of the subsequences.
     """
 
-    #order = orderClass(len(tsA)-m+1) #added v
+    
     mp, mpIndex = _self_join_or_not_preprocess(tsA, tsB, m)
 
     L = len(mp)   # numero di sottosequenze = n-m+1
-    # Se mpIndex è float e contiene inf, rimpiazziamo gli inf con l'indice stesso
+    
+    # Ensure mpIndex contains only valid (finite) values.
+    # Some entries in mpIndex may be NaN or inf due to missing or invalid matches.
+    # To handle this, we:
+    # 1. Convert mpIndex to float to allow detection of NaN/inf values.
+    # 2. Identify non-finite entries using a boolean mask.
+    # 3. Replace non-finite entries with their own index as a fallback (i.e., mpIndex[i] = i).
+    #    This avoids errors in downstream processing and ensures all indices are valid.
+    # 4. Convert mpIndex back to integer type for consistency
+
     mpIndex = mpIndex.astype(float)
     mask_inf = ~np.isfinite(mpIndex)
     mpIndex[mask_inf] = np.arange(L)[mask_inf]
@@ -119,8 +130,7 @@ def _matrixProfile(tsA,m,v,distanceProfileFunction,tsB=None):
     tsB = _clean_nan_inf(tsB)
 
     n = len(tsA)
-    #idx=0 #added v - indifferent if we add it here or not, it gives the same result
-    for idx in range(0, n - m + 1, v):
+    for idx in range(0, n - m + 1, v): #we skip the indexes we do not want to calculate
         (distanceProfile,querySegmentsID) = distanceProfileFunction(tsA,idx,m,v,tsB)
 
         #Check which of the indices have found a new minimum
@@ -319,6 +329,9 @@ def stmp(tsA,m,v,tsB=None):
     tsA: Time series containing the queries for which to calculate the Matrix Profile.
     m: Length of subsequence to compare.
     tsB: Time series to compare the query against. Note that, if no value is provided, tsB = tsA by default.
+    v : Step size for sliding the window across the time series.
+        Instead of computing the distance profile at every index, the algorithm skips v indices between each starting point of the subsequences.
+
     """
     return _matrixProfile(tsA,m,v,distanceProfile.massDistanceProfile,tsB)
 

@@ -10,6 +10,8 @@ range = getattr(__builtins__, 'xrange', range)
 from .utils import *
 import numpy as np
 
+
+
 def naiveDistanceProfile(tsA,idx,m,v,tsB = None):
     """
     Returns the distance profile of a query within tsA against the time series tsB using the naive all-pairs comparison.
@@ -64,11 +66,13 @@ def massDistanceProfile(tsA,idx,m,v,tsB = None):
 
     query = tsA[idx:(idx+m)]
     n = len(tsB)
+    #call mass to calculate the distance profile
     distanceProfile = np.real(np.sqrt(mass(query,tsB,v).astype(complex)))
     if selfJoin:
         trivialMatchRange = (int(max(0,idx - np.round(m/2,0))), int(min(idx + np.round(m/2+1,0),n)))
         distanceProfile[trivialMatchRange[0]:trivialMatchRange[1]] = np.nan
     
+    #Both the distance profile and corresponding matrix profile index (which should just have the current index)
     return (distanceProfile, np.full(n-m+1, idx, dtype=float))
 
 def mass_distance_profile_parallel(indices, tsA=None, tsB=None, m=None):
