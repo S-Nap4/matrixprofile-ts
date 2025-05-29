@@ -12,7 +12,7 @@ import numpy as np
 
 
 
-def naiveDistanceProfile(tsA,idx,m,v,tsB = None):
+def naiveDistanceProfile(tsA,idx,m,tsB = None):
     """
     Returns the distance profile of a query within tsA against the time series tsB using the naive all-pairs comparison.
 
@@ -47,7 +47,7 @@ def naiveDistanceProfile(tsA,idx,m,v,tsB = None):
     return (dp,np.full(n-m+1,idx,dtype=float))
 
 
-def massDistanceProfile(tsA,idx,m,v,tsB = None):
+def massDistanceProfile(tsA,idx,m,v,tsB = None): #added v
     """
     Returns the distance profile of a query within tsA against the time series tsB using the more efficient MASS comparison.
 
@@ -67,7 +67,7 @@ def massDistanceProfile(tsA,idx,m,v,tsB = None):
     query = tsA[idx:(idx+m)]
     n = len(tsB)
     #call mass to calculate the distance profile
-    distanceProfile = np.real(np.sqrt(mass(query,tsB,v).astype(complex)))
+    distanceProfile = np.real(np.sqrt(mass(query,tsB,v).astype(complex))) #added v
     if selfJoin:
         trivialMatchRange = (int(max(0,idx - np.round(m/2,0))), int(min(idx + np.round(m/2+1,0),n)))
         distanceProfile[trivialMatchRange[0]:trivialMatchRange[1]] = np.nan

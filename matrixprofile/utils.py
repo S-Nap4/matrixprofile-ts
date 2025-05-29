@@ -91,7 +91,7 @@ def movstd(ts,m):
 
     return np.sqrt(segSumSq / m - (segSum/m) ** 2)
 
-def slidingDotProduct(query,ts,v=1):
+def slidingDotProduct(query,ts,v=1): #added v
     """
     Calculate the dot product between a query and all subsequences of length(query) in the timeseries ts. Note that we use Numpy's rfft method instead of fft.
 
@@ -175,7 +175,7 @@ def DotProductStomp(ts,m,dot_first,dot_prev,order):
     return dot
 
 
-def mass(query,ts,v):
+def mass(query,ts,v): #added v
     """
     Calculates Mueen's ultra-fast Algorithm for Similarity Search (MASS): a Euclidian distance similarity search algorithm. Note that we are returning the square of MASS.
 

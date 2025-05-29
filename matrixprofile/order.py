@@ -20,15 +20,15 @@ class linearOrder(Order):
     """
     An object that defines a linear (iterative) order in which the distance profiles are calculated for a given Matrix Profile
     """
-    def __init__(self, size): #added v
+    def __init__(self, size): 
         self.size = size
         self.idx = -1
-    ####    added v and changed self.idx +=1 in self.idx += v 
+
     def next(self):
         """
         Advances the Order object to the next index
         """
-        self.idx += 1 #added v
+        self.idx += 1 
         if self.idx < self.size:
             return self.idx
         else:
