@@ -1,0 +1,37 @@
+## Project Overview
+This project has been developed as part of the Time Series Analysis course at the Free University of Bozen-Bolzano.
+
+The foundation of this work is based on pre-existing code inspired by the paper:
+*"Matrix Profile I: All Pairs Similarity Joins for Time Series: A Unifying View That Includes Motifs, Discords and Shapelets"* by Yeh et al.
+
+## Objective
+Our goal was to enhance an already well-established algorithm by introducing a customizable parameter v, which allows the computation of the distance profile every v subsequences, rather than at every step. 
+
+## Methodology
+We conducted several experiments, including:
+
+Plotting the Matrix Profile
+Discovering motifs
+These experiments were designed to evaluate the accuracy and behavior of the modified algorithm.
+
+## Modified Components
+The following functions were modified:
+
+In **matrixProfile.py**:
+            -stmp
+            -_matrixProfile
+
+In **utils.py**:
+            -mass
+            -slidingDotProduct
+
+
+Additionally, we made changes to the following Jupyter notebooks:
+
+*Matrix_Profile_Tutorial.ipynb*
+*Motif_Discovery.ipynb*
+
+In the Motif Discovery notebook, we also implemented a custom function for motif discovery using the stmp algorithm.
+
+## Notes
+Other functions were also modified during the development process as part of our exploration, but they were not used in the final implementation.

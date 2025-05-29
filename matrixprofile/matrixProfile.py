@@ -107,7 +107,7 @@ def _matrixProfile(tsA,m,v,distanceProfileFunction,tsB=None):
     
     mp, mpIndex = _self_join_or_not_preprocess(tsA, tsB, m)
 
-    L = len(mp)   # numero di sottosequenze = n-m+1
+    L = len(mp)   
     
     # Ensure mpIndex contains only valid (finite) values.
     # Some entries in mpIndex may be NaN or inf due to missing or invalid matches.
