@@ -11,7 +11,7 @@ from . import distanceProfile
 import numpy as np
 
 
-def motifs(ts, mp, max_motifs=3, radius=2, n_neighbors=None, ex_zone=None):
+def motifs(ts, mp, max_motifs=3,v=1, radius=2, n_neighbors=None, ex_zone=None):
     """
     Computes the top k motifs from a matrix profile
 
@@ -62,7 +62,7 @@ def motifs(ts, mp, max_motifs=3, radius=2, n_neighbors=None, ex_zone=None):
 
         motif_set = set(initial_motif)
 
-        prof, _ = distanceProfile.massDistanceProfile(ts, initial_motif[0], m)
+        prof, _ = distanceProfile.massDistanceProfile(ts, initial_motif[0], m,v,ts)
 
         # kill off any indices around the initial motif pair since they are
         # trivial solutions

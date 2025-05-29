@@ -89,7 +89,7 @@ def _self_join_or_not_preprocess(tsA, tsB, m):
 
 ##### changed orderClass in lienarOrder and added v as a input 
 
-def _matrixProfile(tsA,m,linearOrder,v,distanceProfileFunction,tsB=None):
+def _matrixProfile(tsA,m,v,distanceProfileFunction,tsB=None):
     """
     Core method for calculating the Matrix Profile
 
@@ -102,8 +102,15 @@ def _matrixProfile(tsA,m,linearOrder,v,distanceProfileFunction,tsB=None):
     sampling: The percentage of all possible distance profiles to sample for the final Matrix Profile.
     """
 
-    order = linearOrder(len(tsA)-m+1,v) #added v
+    #order = orderClass(len(tsA)-m+1) #added v
     mp, mpIndex = _self_join_or_not_preprocess(tsA, tsB, m)
+
+    L = len(mp)   # numero di sottosequenze = n-m+1
+    # Se mpIndex è float e contiene inf, rimpiazziamo gli inf con l'indice stesso
+    mpIndex = mpIndex.astype(float)
+    mask_inf = ~np.isfinite(mpIndex)
+    mpIndex[mask_inf] = np.arange(L)[mask_inf]
+    mpIndex = mpIndex.astype(int)
 
     if not is_array_like(tsB):
         tsB = tsA
@@ -111,9 +118,10 @@ def _matrixProfile(tsA,m,linearOrder,v,distanceProfileFunction,tsB=None):
     tsA = _clean_nan_inf(tsA)
     tsB = _clean_nan_inf(tsB)
 
-    idx=order.next(v) #added v - indifferent if we add it here or not, it gives the same result
-    while idx != None:
-        (distanceProfile,querySegmentsID) = distanceProfileFunction(tsA,idx,m,tsB)
+    n = len(tsA)
+    #idx=0 #added v - indifferent if we add it here or not, it gives the same result
+    for idx in range(0, n - m + 1, v):
+        (distanceProfile,querySegmentsID) = distanceProfileFunction(tsA,idx,m,v,tsB)
 
         #Check which of the indices have found a new minimum
         idsToUpdate = distanceProfile < mp
@@ -123,7 +131,6 @@ def _matrixProfile(tsA,m,linearOrder,v,distanceProfileFunction,tsB=None):
 
         #Update the matrix profile to include the new minimum values (where appropriate)
         mp = np.minimum(mp,distanceProfile)
-        idx = order.next()
 
     return (mp,mpIndex)
 
@@ -218,7 +225,7 @@ def _matrixProfile_sampling(tsA,m,orderClass,distanceProfileFunction,tsB=None,sa
 
 
 #Write matrix profile function for STOMP and then consolidate later! (aka link to the previous distance profile)
-def _matrixProfile_stomp(tsA,m,orderClass,distanceProfileFunction,tsB=None): #added v
+def _matrixProfile_stomp(tsA,m,v,orderClass,distanceProfileFunction,tsB=None): #added v
     order = orderClass(len(tsA)-m+1) #added v here
     mp, mpIndex = _self_join_or_not_preprocess(tsA, tsB, m)
 
@@ -255,7 +262,7 @@ def _matrixProfile_stomp(tsA,m,orderClass,distanceProfileFunction,tsB=None): #ad
 
         #Update the matrix profile to include the new minimum values (where appropriate)
         mp = np.minimum(mp,distanceProfile)
-        idx = order.next()
+        idx = idx + v
 
         dp = dot_prev
     return (mp,mpIndex)
@@ -291,7 +298,7 @@ def stampi_update(tsA,m,mp,mpIndex,newval,tsB=None,distanceProfileFunction=dista
     return (mp_final,mpIndex_new)
 
 
-def naiveMP(tsA,m,tsB=None):
+def naiveMP(tsA,m,v,tsB=None):
     """
     Calculate the Matrix Profile using the naive all-pairs calculation.
 
@@ -301,9 +308,9 @@ def naiveMP(tsA,m,tsB=None):
     m: Length of subsequence to compare.
     tsB: Time series to compare the query against. Note that, if no value is provided, tsB = tsA by default.
     """
-    return _matrixProfile(tsA,m,order.linearOrder,distanceProfile.naiveDistanceProfile,tsB)
+    return _matrixProfile(tsA,m,v,distanceProfile.naiveDistanceProfile,tsB)
 
-def stmp(tsA,m,tsB=None):
+def stmp(tsA,m,v,tsB=None):
     """
     Calculate the Matrix Profile using the more efficient MASS calculation. Distance profiles are computed linearly across every time series index.
 
@@ -313,7 +320,7 @@ def stmp(tsA,m,tsB=None):
     m: Length of subsequence to compare.
     tsB: Time series to compare the query against. Note that, if no value is provided, tsB = tsA by default.
     """
-    return _matrixProfile(tsA,m,order.linearOrder,distanceProfile.massDistanceProfile,tsB)
+    return _matrixProfile(tsA,m,v,distanceProfile.massDistanceProfile,tsB)
 
 def stamp(tsA,m,tsB=None,sampling=0.2, n_threads=None, random_state=None):
     """
@@ -349,57 +356,7 @@ def stomp(tsA,m,v=1,tsB=None): #added v
     return _matrixProfile_stomp(tsA,m,v, order.linearOrder,distanceProfile.STOMPDistanceProfile,tsB) #added v
 
 
-def sampled_stomp(tsA, m, v=1, tsB=None):
-    """
-    STOMP con sottocampionamento che mantiene la correttezza matematica
-    """
-    # Calcola il profilo completo
-    full_mp = _matrixProfile_stomp(tsA, m, order.linearOrder, 
-                                 distanceProfile.STOMPDistanceProfile, tsB)
-    
-    # Controlla il formato dell'output
-    if not isinstance(full_mp[0], np.ndarray):
-        full_mp = (np.array(full_mp[0]), np.array(full_mp[1]))
-    
-    # Applica il sottocampionamento
-    indices = np.arange(0, len(full_mp[0]), v)
-    return (full_mp[0][indices], full_mp[1][indices])
 
-
-def compute_cac(mpi, m, original_length, v=1):
-    """
-    Calcola la CAC tenendo conto del subsampling.
-    mpi: array di indici (potenzialmente floats) restituiti da sampled_stomp
-    m: lunghezza della finestra
-    original_length: lunghezza della serie originale
-    v: stride usato nel sottocampionamento
-    """
-    # Matrice di transizione: dimensione original_length+1
-    nnmark = np.zeros(original_length + 1, dtype=int)
-
-    for i, mpi_val in enumerate(mpi):
-        # Calcola le posizioni nella serie originale
-        idx_i = i * v
-        idx_j = int(mpi_val)          # <<< cast a int!
-        
-        small = min(idx_i, idx_j)
-        large = max(idx_i, idx_j)
-        
-        # Applica l’aggiornamento del flusso
-        nnmark[small + 1] += 1
-        if large < len(nnmark):
-            nnmark[large] -= 1
-
-    # Somma cumulativa degli archi che attraversano ogni punto
-    cross_count = np.cumsum(nnmark)
-
-    # Prendi solo la parte valida (fino a original_length-m+1)
-    cac = cross_count[: original_length - m + 1]
-
-    # Normalizzazione tra 0 e 1
-    cac = (cac - cac.min()) / (cac.max() - cac.min())
-
-    return cac
 
 
 

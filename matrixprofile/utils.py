@@ -91,7 +91,7 @@ def movstd(ts,m):
 
     return np.sqrt(segSumSq / m - (segSum/m) ** 2)
 
-def slidingDotProduct(query,ts):
+def slidingDotProduct(query,ts,v=1):
     """
     Calculate the dot product between a query and all subsequences of length(query) in the timeseries ts. Note that we use Numpy's rfft method instead of fft.
 
@@ -99,38 +99,54 @@ def slidingDotProduct(query,ts):
     ----------
     query: Specific time series query to evaluate.
     ts: Time series to calculate the query's sliding dot product against.
+     v : int, optional
+        Step size (default=1, compute every subsequence).
     """
 
     m = len(query)
     n = len(ts)
 
+    if v==1:
+        #If length is odd, zero-pad time time series
+        ts_add = 0
+        if n%2 ==1:
+            ts = np.insert(ts,0,0)
+            ts_add = 1
 
-    #If length is odd, zero-pad time time series
-    ts_add = 0
-    if n%2 ==1:
-        ts = np.insert(ts,0,0)
-        ts_add = 1
+        q_add = 0
+        #If length is odd, zero-pad query
+        if m%2 == 1:
+            query = np.insert(query,0,0)
+            q_add = 1
 
-    q_add = 0
-    #If length is odd, zero-pad query
-    if m%2 == 1:
-        query = np.insert(query,0,0)
-        q_add = 1
-
-    #This reverses the array
-    query = query[::-1]
-
-
-    query = np.pad(query,(0,n-m+ts_add-q_add),'constant')
-
-    #Determine trim length for dot product. Note that zero-padding of the query has no effect on array length, which is solely determined by the longest vector
-    trim = m-1+ts_add
-
-    dot_product = fft.irfft(fft.rfft(ts)*fft.rfft(query))
+        #This reverses the array
+        query = query[::-1]
 
 
-    #Note that we only care about the dot product results from index m-1 onwards, as the first few values aren't true dot products (due to the way the FFT works for dot products)
-    return dot_product[trim :]
+        query = np.pad(query,(0,n-m+ts_add-q_add),'constant')
+
+        #Determine trim length for dot product. Note that zero-padding of the query has no effect on array length, which is solely determined by the longest vector
+        trim = m-1+ts_add
+
+        dot_product = fft.irfft(fft.rfft(ts)*fft.rfft(query))
+
+
+        #Note that we only care about the dot product results from index m-1 onwards, as the first few values aren't true dot products (due to the way the FFT works for dot products)
+        return dot_product[trim :]
+    else: #Non usa FFT perché il vantaggio computazionale si perde quando v è grande.
+        # Number of required dot products
+        num_dots = (n - m) // v + 1
+        
+        # Initialize output array
+        dot_product = np.zeros(num_dots)
+        
+        # Compute each required dot product directly
+        for i in range(num_dots):
+            start = i * v #Calcola solo i prodotti scalari necessari (start = i * v).
+            end = start + m
+            dot_product[i] = np.dot(query, ts[start:end])
+        
+        return dot_product
 
 def DotProductStomp(ts,m,dot_first,dot_prev,order):
     """
@@ -156,7 +172,7 @@ def DotProductStomp(ts,m,dot_first,dot_prev,order):
     return dot
 
 
-def mass(query,ts):
+def mass(query,ts,v):
     """
     Calculates Mueen's ultra-fast Algorithm for Similarity Search (MASS): a Euclidian distance similarity search algorithm. Note that we are returning the square of MASS.
 
@@ -171,13 +187,27 @@ def mass(query,ts):
     q_mean = np.mean(query)
     q_std = np.std(query)
     mean, std = movmeanstd(ts,m)
-    dot = slidingDotProduct(query,ts)
+    dot = slidingDotProduct(query,ts,v)
+
+    min_len = min(len(dot), len(mean), len(std))
+    dot = dot[:min_len]
+    mean = mean[:min_len]
+    std = std[:min_len]
 
     #res = np.sqrt(2*m*(1-(dot-m*mean*q_mean)/(m*std*q_std)))
     res = 2*m*(1-(dot-m*mean*q_mean)/(m*std*q_std))
 
 
-    return res
+    res_full = np.full(len(ts) - m + 1, np.nan)  # array pieno di nan
+
+    # Mappa i risultati calcolati nei posti corretti (ogni v posizioni)
+    res_full = np.full(len(ts) - m + 1, np.nan)
+    for i, val in enumerate(res):
+        idx = i * v
+        if idx < len(res_full):
+            res_full[idx] = val
+
+    return res_full
 
 def massStomp(query,ts,dot_first,dot_prev,index,mean,std):
     """

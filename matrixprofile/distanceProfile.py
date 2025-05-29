@@ -10,7 +10,7 @@ range = getattr(__builtins__, 'xrange', range)
 from .utils import *
 import numpy as np
 
-def naiveDistanceProfile(tsA,idx,m,tsB = None):
+def naiveDistanceProfile(tsA,idx,m,v,tsB = None):
     """
     Returns the distance profile of a query within tsA against the time series tsB using the naive all-pairs comparison.
 
@@ -32,6 +32,7 @@ def naiveDistanceProfile(tsA,idx,m,tsB = None):
     n = len(tsB)
 
     for i in range(n-m+1):
+        print("inizio", i, "fine", (i+m))
         distanceProfile.append(zNormalizeEuclidian(query,tsB[i:i+m]))
 
     dp = np.array(distanceProfile)
@@ -44,7 +45,7 @@ def naiveDistanceProfile(tsA,idx,m,tsB = None):
     return (dp,np.full(n-m+1,idx,dtype=float))
 
 
-def massDistanceProfile(tsA,idx,m,tsB = None):
+def massDistanceProfile(tsA,idx,m,v,tsB = None):
     """
     Returns the distance profile of a query within tsA against the time series tsB using the more efficient MASS comparison.
 
@@ -63,13 +64,12 @@ def massDistanceProfile(tsA,idx,m,tsB = None):
 
     query = tsA[idx:(idx+m)]
     n = len(tsB)
-    distanceProfile = np.real(np.sqrt(mass(query,tsB).astype(complex)))
+    distanceProfile = np.real(np.sqrt(mass(query,tsB,v).astype(complex)))
     if selfJoin:
-        trivialMatchRange = (int(max(0,idx - np.round(m/2,0))),int(min(idx + np.round(m/2+1,0),n)))
-        distanceProfile[trivialMatchRange[0]:trivialMatchRange[1]] = np.inf
-
-    #Both the distance profile and corresponding matrix profile index (which should just have the current index)
-    return (distanceProfile,np.full(n-m+1,idx,dtype=float))
+        trivialMatchRange = (int(max(0,idx - np.round(m/2,0))), int(min(idx + np.round(m/2+1,0),n)))
+        distanceProfile[trivialMatchRange[0]:trivialMatchRange[1]] = np.nan
+    
+    return (distanceProfile, np.full(n-m+1, idx, dtype=float))
 
 def mass_distance_profile_parallel(indices, tsA=None, tsB=None, m=None):
     """
