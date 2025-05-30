@@ -198,6 +198,8 @@ def mass(query,ts,v): #added v
     # - The sliding dot product (dot) may return fewer elements when using a step size v.
     # - The moving mean and std (mean, std) are computed over the full time series.
     # To avoid broadcasting errors or mismatched array operations, we truncate all three arrays to the minimum common length.
+    # This does not result in loss of useful data, because we only retain values for which all components are available.
+
 
     min_len = min(len(dot), len(mean), len(std))
     dot = dot[:min_len]
